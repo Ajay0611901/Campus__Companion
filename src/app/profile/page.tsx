@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 // Mock user data
 const mockUser = {
@@ -113,9 +114,33 @@ function ChallengeCard({ challenge }: { challenge: typeof challenges[0] }) {
 }
 
 export default function ProfilePage() {
-    const [user] = useState(mockUser);
-    const xpToNextLevel = 3000;
-    const xpProgress = (user.stats.xp / xpToNextLevel) * 100;
+    const { profile: userProfileData } = useUserProfile();
+
+    // Combine mock structure with real data
+    const user = {
+        displayName: userProfileData?.fullName || "Guest Student",
+        email: userProfileData?.email || "guest@example.com",
+        photoURL: null,
+        stats: {
+            resumeScore: userProfileData?.stats?.resumeScore || 0,
+            skillProgress: userProfileData?.stats?.skillProgress || 0,
+            interviewReadiness: userProfileData?.stats?.interviewReadiness || 0,
+            streakDays: userProfileData?.stats?.streakDays || 0,
+            totalBadges: userProfileData?.stats?.totalBadges || 0,
+            xp: userProfileData?.stats?.xp || 0,
+            level: userProfileData?.stats?.level || 1,
+        },
+        profile: {
+            interests: userProfileData?.interestedDomains || [],
+            careerGoal: userProfileData?.targetRole || "Career Explorer",
+            currentLevel: userProfileData?.experienceLevel || "fresher",
+            targetRoles: [userProfileData?.targetRole || ""].filter(Boolean),
+            skills: userProfileData?.skillsLearned || [],
+        },
+    };
+
+    const xpToNextLevel = user.stats.level * 1000;
+    const xpProgress = ((user.stats.xp % 1000) / 1000) * 100;
 
     return (
         <div className="animate-fade-in">

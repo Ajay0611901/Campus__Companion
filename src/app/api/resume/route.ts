@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { verifyAuth } from '@/lib/auth';
+import { updateUserStats } from '@/lib/firebase-admin';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -66,6 +67,9 @@ Return ONLY valid JSON, no markdown.`;
             .trim();
 
         const analysis = JSON.parse(cleanedResponse);
+
+        // Update user stats
+        await updateUserStats(user.uid, 50, { resume: analysis.score });
 
         return NextResponse.json({
             success: true,

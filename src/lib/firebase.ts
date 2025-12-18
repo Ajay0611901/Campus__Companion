@@ -163,10 +163,76 @@ export async function sendChatMessage(data: {
         body: JSON.stringify(data),
     });
 
-    if (response.status === 401) throw new Error('Please sign in to chat');
-    if (!response.ok) throw new Error('Failed to send message');
+    if (response.status === 401) throw new Error('Authentication required: Please sign in to chat');
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || 'Failed to send message');
+    }
 
     return { data: await response.json() };
+}
+
+/**
+ * Streaming Chat - uses /api/chat with event-stream
+ */
+export async function streamChatMessage(
+    data: {
+        message: string;
+        conversationHistory?: string;
+        userId?: string;
+        userProfile?: any;
+    },
+    onChunk: (chunk: string) => void
+) {
+    const authHeader = await getAuthHeader();
+    const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...authHeader
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (response.status === 401) throw new Error('Authentication required');
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to start stream');
+    }
+
+    if (!response.body) throw new Error('No response body');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let leftOver = '';
+
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const currentChunk = decoder.decode(value, { stream: true });
+        const allContent = leftOver + currentChunk;
+        const lines = allContent.split('\n');
+
+        // Save the last partial line (if it doesn't end with newline)
+        leftOver = allContent.endsWith('\n') ? '' : lines.pop() || '';
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+
+            if (trimmedLine.startsWith('data: ')) {
+                try {
+                    const json = JSON.parse(trimmedLine.substring(6));
+                    const content = json.choices[0]?.delta?.content || json.choices[0]?.text || '';
+                    if (content) onChunk(content);
+                } catch (e) {
+                    // console.warn('Failed to parse SSE line:', trimmedLine);
+                }
+            }
+        }
+    }
 }
 
 export async function getChatHistory() {

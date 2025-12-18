@@ -32,6 +32,16 @@ export interface UserProfile {
     createdAt?: any;
     updatedAt?: any;
     onboardingCompleted: boolean;
+    stats?: {
+        xp: number;
+        level: number;
+        streakDays: number;
+        totalBadges: number;
+        resumeScore?: number;
+        skillProgress?: number;
+        interviewReadiness?: number;
+        lastActive?: any;
+    };
 }
 
 export function useUserProfile() {

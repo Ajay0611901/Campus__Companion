@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { verifyAuth } from '@/lib/auth';
+import { updateUserStats } from '@/lib/firebase-admin';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -52,6 +53,9 @@ Provide JSON:
             .trim();
 
         const summary = JSON.parse(cleanedResponse);
+
+        // Update user stats (20 XP per summary)
+        await updateUserStats(user.uid, 20);
 
         return NextResponse.json({
             success: true,

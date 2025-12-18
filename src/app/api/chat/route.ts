@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { updateUserStats } from '@/lib/firebase-admin';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -107,7 +108,7 @@ IMPORTANT: Use this information to personalize your responses. When the student 
             content: message
         });
 
-        // Call OpenRouter API
+        // Call OpenRouter API with streaming
         const apiResponse = await fetch(OPENROUTER_API_URL, {
             method: 'POST',
             headers: {
@@ -117,27 +118,29 @@ IMPORTANT: Use this information to personalize your responses. When the student 
                 'X-Title': 'AI Campus Companion'
             },
             body: JSON.stringify({
-                model: 'openai/gpt-3.5-turbo',
+                model: 'google/gemini-2.0-flash-001',
                 messages: messages,
                 temperature: 0.7,
-                max_tokens: 1000
+                max_tokens: 1000,
+                stream: true // Enable streaming
             })
         });
 
         if (!apiResponse.ok) {
-            const errorData = await apiResponse.json();
+            const errorData = await apiResponse.json().catch(() => ({}));
             throw new Error(`OpenRouter API error: ${JSON.stringify(errorData)}`);
         }
 
-        const data = await apiResponse.json();
-        const responseText = data.choices[0].message.content;
+        // Award XP at the start of the interaction
+        updateUserStats(user.uid, 5).catch(err => console.error('XP update failed:', err));
 
-        console.log('✅ Chat response generated:', { responseLength: responseText.length, personalized: !!userProfile });
-
-        return NextResponse.json({
-            success: true,
-            response: responseText,
-            timestamp: new Date().toISOString(),
+        // Return the raw stream to the client
+        return new Response(apiResponse.body, {
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+            },
         });
 
     } catch (error: any) {

@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { AuthModal } from "@/components/AuthModal";
 
 // Stat Card Component
 function StatCard({
@@ -88,30 +91,61 @@ function QuickActionCard({
   title,
   description,
   href,
-  gradient
+  gradient,
+  isGuest,
+  onGuestClick
 }: {
   icon: string;
   title: string;
   description: string;
   href: string;
   gradient: string;
+  isGuest: boolean;
+  onGuestClick: () => void;
 }) {
+  const handleClick = (e: React.MouseEvent) => {
+    if (isGuest) {
+      e.preventDefault();
+      onGuestClick();
+    }
+  };
+
   return (
-    <a href={href} className="card animate-fade-in" style={{ textDecoration: 'none' }}>
+    <Link
+      href={href}
+      onClick={handleClick}
+      className="card animate-fade-in"
+      style={{
+        textDecoration: 'none',
+        opacity: isGuest ? 0.8 : 1,
+        cursor: 'pointer'
+      }}
+    >
       <div
         className="card-icon mb-4"
         style={{
           background: gradient,
           width: '48px',
           height: '48px',
-          fontSize: '24px'
+          fontSize: '24px',
+          position: 'relative'
         }}
       >
         {icon}
+        {isGuest && (
+          <div style={{
+            position: 'absolute',
+            top: -5,
+            right: -5,
+            fontSize: '12px'
+          }}>🔒</div>
+        )}
       </div>
-      <h3 className="card-title mb-4">{title}</h3>
+      <h3 className="card-title mb-4">
+        {title}
+      </h3>
       <p className="text-sm text-gray">{description}</p>
-    </a>
+    </Link>
   );
 }
 
@@ -153,17 +187,21 @@ function ScoreRing({ score, label, size = 120 }: { score: number; label: string;
 
 export default function Dashboard() {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { profile } = useUserProfile();
 
   useEffect(() => {
     setIsLoaded(true);
   }, []);
 
-  // Mock data - will be replaced with real data from Firebase
+  // Use real data from profile, fallback to default 0s for guests/new users
   const stats = {
-    resumeScore: 78,
-    skillProgress: 45,
-    interviewReadiness: 62,
-    streakDays: 7,
+    resumeScore: profile?.stats?.resumeScore || 0,
+    skillProgress: profile?.stats?.skillProgress || 0,
+    interviewReadiness: profile?.stats?.interviewReadiness || 0,
+    streakDays: profile?.stats?.streakDays || 0,
+    xp: profile?.stats?.xp || 0,
+    level: profile?.stats?.level || 1,
   };
 
   return (
@@ -210,6 +248,11 @@ export default function Dashboard() {
         />
       </div>
 
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
+
       {/* Main Content Grid */}
       <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: '24px', marginBottom: '32px' }}>
         {/* Quick Actions */}
@@ -224,6 +267,8 @@ export default function Dashboard() {
               description="Get AI-powered feedback on your resume with ATS scoring"
               href="/resume"
               gradient="linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.3))"
+              isGuest={!profile}
+              onGuestClick={() => setIsAuthModalOpen(true)}
             />
             <QuickActionCard
               icon="🎯"
@@ -231,6 +276,8 @@ export default function Dashboard() {
               description="Generate a personalized learning path for your career"
               href="/skills"
               gradient="linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(16, 185, 129, 0.3))"
+              isGuest={!profile}
+              onGuestClick={() => setIsAuthModalOpen(true)}
             />
             <QuickActionCard
               icon="📚"
@@ -238,6 +285,8 @@ export default function Dashboard() {
               description="Summarize lectures, create flashcards, generate quizzes"
               href="/study"
               gradient="linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(244, 63, 94, 0.3))"
+              isGuest={!profile}
+              onGuestClick={() => setIsAuthModalOpen(true)}
             />
             <QuickActionCard
               icon="🎤"
@@ -245,6 +294,8 @@ export default function Dashboard() {
               description="Practice with AI interviewer and get STAR feedback"
               href="/interview"
               gradient="linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.3))"
+              isGuest={!profile}
+              onGuestClick={() => setIsAuthModalOpen(true)}
             />
           </div>
         </div>

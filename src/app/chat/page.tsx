@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { sendChatMessage, isFirebaseConfigured, auth, db } from "@/lib/firebase";
+import { sendChatMessage, streamChatMessage, isFirebaseConfigured, auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import { AuthModal } from "@/components/AuthModal";
 
 interface Message {
     role: "user" | "assistant";
@@ -17,7 +18,9 @@ export default function ChatPage() {
     const [error, setError] = useState<string | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [userProfile, setUserProfile] = useState<any>(null);
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const assistantMessageRef = useRef<string>(""); // Track full message for stable streaming
 
     // Check if Firebase is configured
     const [isConfigured, setIsConfigured] = useState(true);
@@ -71,29 +74,38 @@ export default function ChatPage() {
                 .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
                 .join('\n');
 
-            const result = await sendChatMessage({
+            // Add an empty assistant message to be filled by the stream
+            setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+            assistantMessageRef.current = ""; // Reset ref
+
+            await streamChatMessage({
                 message: userMessage,
                 conversationHistory: historyString,
-                userProfile: userProfile || undefined, // Pass user profile for personalization
+                userProfile: userProfile || undefined,
+            }, (chunkValue: string) => {
+                assistantMessageRef.current += chunkValue;
+                const fullText = assistantMessageRef.current;
+
+                setMessages((prev) => {
+                    const newMessages = [...prev];
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    if (lastMessage && lastMessage.role === "assistant") {
+                        lastMessage.content = fullText; // Set to full accumulated text
+                    }
+                    return newMessages;
+                });
             });
 
-            const response = result.data as { success: boolean; response?: string; error?: string; details?: string };
-
-            if (response.success && response.response) {
-                setMessages((prev) => [
-                    ...prev,
-                    { role: "assistant", content: response.response! }, // Non-null assertion since we checked above
-                ]);
-            } else {
-                // Show detailed error from API
-                const errorMsg = response.error || "Failed to get response";
-                const details = response.details ? ` (${response.details})` : "";
-                throw new Error(errorMsg + details);
-            }
         } catch (err) {
             // Show detailed error message
             const message = err instanceof Error ? err.message : "Failed to send message";
-            setError(message);
+
+            if (message.includes("Authentication required") || message.includes("401")) {
+                setIsAuthModalOpen(true);
+            } else {
+                setError(message);
+            }
+
             // Remove the user message if failed
             setMessages((prev) => prev.slice(0, -1));
         } finally {
@@ -142,6 +154,13 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id`}
                     Ask me anything about your studies. I&apos;m here to help you learn!
                 </p>
             </div>
+
+            <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                title="💬 Chat requires Login"
+                message="To chat with our AI Learning Assistant and get personalized study help, please log in or sign up."
+            />
 
             {/* Chat Messages */}
             <div
