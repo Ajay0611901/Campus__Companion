@@ -125,7 +125,26 @@ export async function summarizeLecture(data: { content: string; title?: string }
     return { data: await response.json() };
 }
 
-// ... remaining feature placeholders ...
+// Feature placeholders
+export async function generateQuiz(data: any) {
+    throw new Error('Feature coming soon');
+}
+
+export async function generateFlashcards(data: any) {
+    throw new Error('Feature coming soon');
+}
+
+export async function startInterview(data: any) {
+    throw new Error('Feature coming soon');
+}
+
+export async function submitAnswer(data: any) {
+    throw new Error('Feature coming soon');
+}
+
+export async function getNextQuestion(data: any) {
+    throw new Error('Feature coming soon');
+}
 
 // Chat - uses /api/chat
 export async function sendChatMessage(data: {
