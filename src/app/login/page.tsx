@@ -11,6 +11,22 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [localError, setLocalError] = useState<string | null>(null);
+    const [showScroll, setShowScroll] = useState(false);
+
+    // Check for scroll necessity
+    useState(() => {
+        if (typeof window !== 'undefined') {
+            const checkScroll = () => {
+                // Show if content scrolls OR if screen is small (likely needing scroll)
+                setShowScroll(document.documentElement.scrollHeight > window.innerHeight || window.innerHeight < 800);
+            };
+            window.addEventListener('resize', checkScroll);
+            checkScroll();
+            // Also check after a slight delay for layout render
+            setTimeout(checkScroll, 100);
+            return () => window.removeEventListener('resize', checkScroll);
+        }
+    });
 
     const router = useRouter();
     const { signInWithGoogle, signInWithMicrosoft, signInWithEmail, signUpWithEmail, error, isConfigured } = useAuth();
@@ -103,12 +119,16 @@ export default function LoginPage() {
         <div style={{
             minHeight: "100vh",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            flexDirection: "column",
             padding: "24px",
             background: "var(--bg-primary)"
+            // Removed overflowY: auto to let document scroll naturally
         }}>
-            <div className="animate-fade-in" style={{ maxWidth: "420px", width: "100%" }}>
+            <div className="animate-fade-in" style={{
+                maxWidth: "420px",
+                width: "100%",
+                margin: "auto" // Safer centering that allows scrolling
+            }}>
                 {/* Logo */}
                 <div style={{ textAlign: "center", marginBottom: "32px" }}>
                     <div style={{
@@ -265,6 +285,36 @@ export default function LoginPage() {
                     </button>
                 </p>
             </div>
+
+            {/* Scroll Button for Small Screens */}
+            <button
+                onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
+                style={{
+                    position: 'fixed',
+                    bottom: '24px',
+                    right: '24px',
+                    background: 'var(--primary-600)',
+                    color: 'white',
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    border: 'none',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    zIndex: 100,
+                    fontSize: '20px',
+                    transition: 'transform 0.2s',
+                    opacity: showScroll ? 1 : 0,
+                    pointerEvents: showScroll ? 'auto' : 'none',
+                    transform: showScroll ? 'translateY(0)' : 'translateY(10px)'
+                }}
+                title="Scroll to bottom"
+            >
+                ⬇️
+            </button>
         </div>
     );
 }
