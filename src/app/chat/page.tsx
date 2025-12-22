@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { sendChatMessage, streamChatMessage, isFirebaseConfigured, auth, db } from "@/lib/firebase";
+import { streamChatMessage, isFirebaseConfigured, auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { AuthModal } from "@/components/AuthModal";

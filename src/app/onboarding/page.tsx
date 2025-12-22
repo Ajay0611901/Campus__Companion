@@ -118,10 +118,20 @@ export default function OnboardingPage() {
             await saveProfile({
                 ...formData,
                 onboardingCompleted: true,
+                // Initialize fresh stats for new users
+                stats: {
+                    xp: 0,
+                    level: 1,
+                    streakDays: 0,
+                    totalBadges: 0,
+                    resumeScore: 0,
+                    skillProgress: 0,
+                    interviewReadiness: 0,
+                },
             });
 
             // Redirect to dashboard
-            router.push("/");
+            router.replace("/");
         } catch (error) {
             console.error("Failed to save profile:", error);
             alert("Failed to save profile. Please try again.");

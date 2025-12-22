@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
+import { doc, getDoc } from "firebase/firestore";
+import { db, isFirebaseConfigured } from "@/lib/firebase";
 
 export default function LoginPage() {
     const [mode, setMode] = useState<"login" | "signup">("login");
@@ -11,25 +13,38 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [localError, setLocalError] = useState<string | null>(null);
-    const [showScroll, setShowScroll] = useState(false);
-
-    // Check for scroll necessity
-    useState(() => {
-        if (typeof window !== 'undefined') {
-            const checkScroll = () => {
-                // Show if content scrolls OR if screen is small (likely needing scroll)
-                setShowScroll(document.documentElement.scrollHeight > window.innerHeight || window.innerHeight < 800);
-            };
-            window.addEventListener('resize', checkScroll);
-            checkScroll();
-            // Also check after a slight delay for layout render
-            setTimeout(checkScroll, 100);
-            return () => window.removeEventListener('resize', checkScroll);
-        }
-    });
 
     const router = useRouter();
     const { signInWithGoogle, signInWithMicrosoft, signInWithEmail, signUpWithEmail, error, isConfigured } = useAuth();
+
+    // Helper: Check if user has completed onboarding and redirect accordingly
+    const redirectAfterLogin = async (userId: string, isNewUser: boolean = false) => {
+        if (isNewUser) {
+            router.replace("/onboarding");
+            return;
+        }
+
+        // Check Firestore for existing profile
+        if (isFirebaseConfigured()) {
+            try {
+                const docRef = doc(db, 'users', userId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists() && docSnap.data()?.onboardingCompleted) {
+                    // Returning user with completed onboarding -> Dashboard
+                    router.replace("/");
+                } else {
+                    // User exists but hasn't completed onboarding
+                    router.replace("/onboarding");
+                }
+            } catch (err) {
+                console.error("Error checking profile:", err);
+                router.replace("/onboarding");
+            }
+        } else {
+            router.replace("/");
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -49,16 +64,13 @@ export default function LoginPage() {
 
         try {
             if (mode === "login") {
-                await signInWithEmail(email, password);
-                router.push("/");
+                const userCredential = await signInWithEmail(email, password);
+                await redirectAfterLogin(userCredential.user.uid, false);
             } else {
-                await signUpWithEmail(email, password);
-                // Redirect to onboarding for new users
-                router.push("/onboarding");
+                const userCredential = await signUpWithEmail(email, password);
+                await redirectAfterLogin(userCredential.user.uid, true);
             }
         } catch {
-            // Error handled by context
-        } finally {
             setLoading(false);
         }
     };
@@ -66,12 +78,9 @@ export default function LoginPage() {
     const handleGoogleLogin = async () => {
         setLoading(true);
         try {
-            await signInWithGoogle();
-            // For now, redirect all to onboarding - can check if user profile exists in future
-            router.push("/onboarding");
+            const userCredential = await signInWithGoogle();
+            await redirectAfterLogin(userCredential.user.uid, false);
         } catch {
-            // Error handled by context
-        } finally {
             setLoading(false);
         }
     };
@@ -79,12 +88,9 @@ export default function LoginPage() {
     const handleMicrosoftLogin = async () => {
         setLoading(true);
         try {
-            await signInWithMicrosoft();
-            // For now, redirect all to onboarding - can check if user profile exists in future
-            router.push("/onboarding");
+            const userCredential = await signInWithMicrosoft();
+            await redirectAfterLogin(userCredential.user.uid, false);
         } catch {
-            // Error handled by context
-        } finally {
             setLoading(false);
         }
     };
@@ -117,17 +123,18 @@ export default function LoginPage() {
 
     return (
         <div style={{
-            minHeight: "100vh",
+            width: "100%",
             display: "flex",
             flexDirection: "column",
-            padding: "24px",
-            background: "var(--bg-primary)"
-            // Removed overflowY: auto to let document scroll naturally
+            alignItems: "center",
+            // Removed justifyContent: center to preventing clipping when content > viewport
+            padding: "40px 24px",
+            minHeight: "100vh"
         }}>
             <div className="animate-fade-in" style={{
                 maxWidth: "420px",
                 width: "100%",
-                margin: "auto" // Safer centering that allows scrolling
+                margin: "auto" // This ensures vertical centering when space exists, and safe scrolling when it doesn't
             }}>
                 {/* Logo */}
                 <div style={{ textAlign: "center", marginBottom: "32px" }}>
@@ -286,35 +293,6 @@ export default function LoginPage() {
                 </p>
             </div>
 
-            {/* Scroll Button for Small Screens */}
-            <button
-                onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
-                style={{
-                    position: 'fixed',
-                    bottom: '24px',
-                    right: '24px',
-                    background: 'var(--primary-600)',
-                    color: 'white',
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    border: 'none',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    zIndex: 100,
-                    fontSize: '20px',
-                    transition: 'transform 0.2s',
-                    opacity: showScroll ? 1 : 0,
-                    pointerEvents: showScroll ? 'auto' : 'none',
-                    transform: showScroll ? 'translateY(0)' : 'translateY(10px)'
-                }}
-                title="Scroll to bottom"
-            >
-                ⬇️
-            </button>
         </div>
     );
 }

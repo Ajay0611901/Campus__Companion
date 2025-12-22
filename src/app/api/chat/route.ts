@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { updateUserStats } from '@/lib/firebase-admin';
+import { updateUserStats, checkAndDeductCredits } from '@/lib/firebase-admin';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -34,6 +34,15 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { error: 'Unauthorized' },
                 { status: 401 }
+            );
+        }
+
+        // Check and deduct credits
+        const creditResult = await checkAndDeductCredits(user.uid);
+        if (!creditResult.allowed) {
+            return NextResponse.json(
+                { error: `Insufficient credits. ${creditResult.error || 'Daily limit reached.'}` },
+                { status: 403 }
             );
         }
 
@@ -118,7 +127,7 @@ IMPORTANT: Use this information to personalize your responses. When the student 
                 'X-Title': 'AI Campus Companion'
             },
             body: JSON.stringify({
-                model: 'google/gemini-2.0-flash-001',
+                model: 'google/gemini-2.0-flash-exp:free', // Use free usage tier model
                 messages: messages,
                 temperature: 0.7,
                 max_tokens: 1000,

@@ -2,10 +2,21 @@ import * as admin from 'firebase-admin';
 
 if (!admin.apps.length) {
     try {
-        admin.initializeApp({
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        });
-        console.log('✅ Firebase Admin initialized');
+        if (process.env.FIREBASE_PRIVATE_KEY) {
+            admin.initializeApp({
+                credential: admin.credential.cert({
+                    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+                    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+                }),
+            });
+            console.log('✅ Firebase Admin initialized with private key');
+        } else {
+            admin.initializeApp({
+                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+            });
+            console.log('⚠️ Firebase Admin initialized without credentials (ADC mode)');
+        }
     } catch (error) {
         console.error('❌ Firebase Admin initialization error:', error);
     }
@@ -83,5 +94,64 @@ export async function updateUserStats(userId: string, xpGain: number, features?:
         console.log(`✨ Stats updated for ${userId}: +${xpGain} XP`);
     } catch (error) {
         console.error('❌ Error updating user stats:', error);
+    }
+}
+
+/**
+ * Checks if user has enough credits and deducts one if available.
+ * Handles daily reset logic automatically.
+ * 
+ * @returns {Promise<{ allowed: boolean; error?: string }>} Result object
+ */
+export async function checkAndDeductCredits(userId: string): Promise<{ allowed: boolean; error?: string }> {
+    if (!userId) return { allowed: false, error: 'No user ID' };
+
+    const userRef = adminDb.collection('users').doc(userId);
+    const now = admin.firestore.Timestamp.now();
+    const DAILY_LIMIT = 30;
+
+    try {
+        return await adminDb.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists) return { allowed: false, error: 'User document not found' };
+
+            const data = userDoc.data() || {};
+            const stats = data.stats || {};
+
+            const lastReset = stats.lastCreditReset?.toDate();
+            const today = now.toDate();
+
+            // Normalize to midnight for comparison
+            const todayMidnight = new Date(today);
+            todayMidnight.setHours(0, 0, 0, 0);
+
+            let credits = stats.credits;
+
+            // Initialize or Reset if new day
+            // If credits is undefined, or lastReset is missing, or lastReset is before today's midnight
+            if (credits === undefined || !lastReset || lastReset < todayMidnight) {
+                const newCredits = DAILY_LIMIT; // Reset to full
+
+                // Update reset time
+                transaction.update(userRef, {
+                    'stats.credits': newCredits - 1, // Deduct immediately for this request
+                    'stats.lastCreditReset': now
+                });
+                return { allowed: true };
+            }
+
+            // Check if credits available
+            if (credits > 0) {
+                transaction.update(userRef, {
+                    'stats.credits': credits - 1
+                });
+                return { allowed: true };
+            }
+
+            return { allowed: false, error: `Daily limit reached (${credits}/${DAILY_LIMIT})` };
+        });
+    } catch (error: any) {
+        console.error('❌ Error managing credits:', error);
+        return { allowed: false, error: `Transaction failed: ${error.message}` };
     }
 }

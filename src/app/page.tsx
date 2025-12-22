@@ -208,7 +208,9 @@ export default function Dashboard() {
     <div className={isLoaded ? 'animate-fade-in' : ''}>
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Welcome back! 👋</h1>
+        <h1 className="page-title">
+          Welcome back{profile?.fullName ? `, ${profile.fullName.split(' ')[0]}` : ''}! 👋
+        </h1>
         <p className="page-subtitle">
           Your AI-powered journey to career success continues. Here&apos;s your progress overview.
         </p>

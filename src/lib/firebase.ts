@@ -125,36 +125,10 @@ export async function summarizeLecture(data: { content: string; title?: string }
     return { data: await response.json() };
 }
 
-// Feature placeholders
-export async function generateQuiz(data: any) {
-    throw new Error('Feature coming soon');
-}
-
-export async function generateFlashcards(data: any) {
-    throw new Error('Feature coming soon');
-}
-
-export async function startInterview(data: any) {
-    throw new Error('Feature coming soon');
-}
-
-export async function submitAnswer(data: any) {
-    throw new Error('Feature coming soon');
-}
-
-export async function getNextQuestion(data: any) {
-    throw new Error('Feature coming soon');
-}
-
-// Chat - uses /api/chat
-export async function sendChatMessage(data: {
-    message: string;
-    conversationHistory?: string;
-    userId?: string;
-    userProfile?: any;
-}) {
+// Feature placeholders -> Implemented
+export async function generateQuiz(data: { content: string; quizType?: string; difficulty?: string; numQuestions?: number }) {
     const authHeader = await getAuthHeader();
-    const response = await fetch('/api/chat', {
+    const response = await fetch('/api/study/quiz', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -163,26 +137,101 @@ export async function sendChatMessage(data: {
         body: JSON.stringify(data),
     });
 
-    if (response.status === 401) throw new Error('Authentication required: Please sign in to chat');
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || errorData.error || 'Failed to send message');
-    }
+    if (response.status === 401) throw new Error('Please sign in to generate quiz');
+    if (!response.ok) throw new Error('Failed to generate quiz');
 
     return { data: await response.json() };
 }
 
-/**
- * Streaming Chat - uses /api/chat with event-stream
- */
+export async function generateFlashcards(data: { content: string }) {
+    const authHeader = await getAuthHeader();
+    const response = await fetch('/api/study/flashcards', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...authHeader
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (response.status === 401) throw new Error('Please sign in to generate flashcards');
+    if (!response.ok) throw new Error('Failed to generate flashcards');
+
+    return { data: await response.json() };
+}
+
+export async function startInterview(data: { role: string; type: string; difficulty: string }) {
+    const authHeader = await getAuthHeader();
+    const response = await fetch('/api/interview', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...authHeader
+        },
+        body: JSON.stringify({ action: 'start', ...data }),
+    });
+
+    if (response.status === 401) throw new Error('Please sign in to start interview');
+    if (!response.ok) throw new Error('Failed to start interview');
+
+    return { data: await response.json() };
+}
+
+export async function submitAnswer(data: { sessionId: string; answer: string }) {
+    const authHeader = await getAuthHeader();
+    const response = await fetch('/api/interview', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...authHeader
+        },
+        body: JSON.stringify({ action: 'submit', ...data }),
+    });
+
+    if (response.status === 401) throw new Error('Please sign in to submit answer');
+    if (!response.ok) throw new Error('Failed to submit answer');
+
+    return { data: await response.json() };
+}
+
+export async function getNextQuestion(data: any) {
+    // For MVP, we only do single-turn question/feedback loop
+    return { data: { success: true, nextQuestion: null } };
+}
+
+export async function getChatHistory() {
+    // Return empty history for now
+    return { data: [] };
+}
+
+// Gamification - Simple mocks for demo
+export async function checkBadges() {
+    return {
+        data: {
+            items: [
+                { id: '1', name: 'Early Adopter', description: 'Joined the beta', icon: '🌟', earned: true },
+                { id: '2', name: 'Study Star', description: 'Created 5 study guides', icon: '📚', earned: false },
+                { id: '3', name: 'Interview Pro', description: 'Completed 3 interviews', icon: '🎤', earned: false },
+            ]
+        }
+    };
+}
+
+export async function getDailyChallenges() {
+    return {
+        data: {
+            items: [
+                { id: '1', title: 'Complete a Mock Interview', xp: 50, completed: false },
+                { id: '2', title: 'Generate Flashcards', xp: 30, completed: false },
+                { id: '3', title: 'Start a Study Session', xp: 20, completed: false },
+            ]
+        }
+    };
+}
+
+// Chat - Streaming
 export async function streamChatMessage(
-    data: {
-        message: string;
-        conversationHistory?: string;
-        userId?: string;
-        userProfile?: any;
-    },
+    data: { message: string; conversationHistory?: string; userProfile?: any },
     onChunk: (chunk: string) => void
 ) {
     const authHeader = await getAuthHeader();
@@ -197,55 +246,30 @@ export async function streamChatMessage(
 
     if (response.status === 401) throw new Error('Authentication required');
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to start stream');
+        const text = await response.text();
+        let errorData: any = {};
+        try {
+            errorData = JSON.parse(text);
+        } catch (e) {
+            console.error('❌ Server returned non-JSON error:', text.slice(0, 200));
+        }
+
+        const errorMessage = errorData.error || 'Failed to send message';
+        const details = errorData.details ? ` (${errorData.details})` : '';
+        throw new Error(errorMessage + details);
     }
 
     if (!response.body) throw new Error('No response body');
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let leftOver = '';
 
     while (true) {
-        const { value, done } = await reader.read();
+        const { done, value } = await reader.read();
         if (done) break;
-
-        const currentChunk = decoder.decode(value, { stream: true });
-        const allContent = leftOver + currentChunk;
-        const lines = allContent.split('\n');
-
-        // Save the last partial line (if it doesn't end with newline)
-        leftOver = allContent.endsWith('\n') ? '' : lines.pop() || '';
-
-        for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
-
-            if (trimmedLine.startsWith('data: ')) {
-                try {
-                    const json = JSON.parse(trimmedLine.substring(6));
-                    const content = json.choices[0]?.delta?.content || json.choices[0]?.text || '';
-                    if (content) onChunk(content);
-                } catch (e) {
-                    // console.warn('Failed to parse SSE line:', trimmedLine);
-                }
-            }
-        }
+        const chunk = decoder.decode(value, { stream: true });
+        onChunk(chunk);
     }
-}
-
-export async function getChatHistory() {
-    throw new Error('Feature coming soon');
-}
-
-// Gamification - not implemented yet
-export async function checkBadges() {
-    throw new Error('Feature coming soon');
-}
-
-export async function getDailyChallenges() {
-    throw new Error('Feature coming soon');
 }
 
 export default app;

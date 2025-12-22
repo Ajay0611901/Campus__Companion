@@ -47,12 +47,15 @@ function STARAnalysis({ analysis }: {
     );
 }
 
+import { useUserProfile } from "@/hooks/useUserProfile";
+
 export default function InterviewPage() {
     const [role, setRole] = useState("");
     const [type, setType] = useState<"behavioral" | "technical" | "mixed">("behavioral");
     const [difficulty, setDifficulty] = useState<"entry" | "mid" | "senior">("entry");
     const [userAnswer, setUserAnswer] = useState("");
     const [sessionComplete, setSessionComplete] = useState(false);
+    const { addXP } = useUserProfile();
 
     const {
         sessionId,
@@ -81,6 +84,8 @@ export default function InterviewPage() {
             const result = await submit(userAnswer);
             if (result.isComplete) {
                 setSessionComplete(true);
+                // Award XP for completing the interview
+                await addXP(50);
             }
             setUserAnswer("");
         } catch {

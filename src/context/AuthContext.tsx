@@ -9,6 +9,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import {
     User,
+    UserCredential,
     signInWithPopup,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
@@ -23,10 +24,10 @@ interface AuthContextType {
     user: User | null;
     loading: boolean;
     error: string | null;
-    signInWithGoogle: () => Promise<void>;
-    signInWithMicrosoft: () => Promise<void>;
-    signInWithEmail: (email: string, password: string) => Promise<void>;
-    signUpWithEmail: (email: string, password: string) => Promise<void>;
+    signInWithGoogle: () => Promise<UserCredential>;
+    signInWithMicrosoft: () => Promise<UserCredential>;
+    signInWithEmail: (email: string, password: string) => Promise<UserCredential>;
+    signUpWithEmail: (email: string, password: string) => Promise<UserCredential>;
     signOut: () => Promise<void>;
     isConfigured: boolean;
 }
@@ -55,42 +56,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => unsubscribe();
     }, []);
 
-    const signInWithGoogle = async () => {
+    const signInWithGoogle = async (): Promise<UserCredential> => {
         setError(null);
         try {
             const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
+            return await signInWithPopup(auth, provider);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
             throw err;
         }
     };
 
-    const signInWithMicrosoft = async () => {
+    const signInWithMicrosoft = async (): Promise<UserCredential> => {
         setError(null);
         try {
             const provider = new OAuthProvider('microsoft.com');
-            await signInWithPopup(auth, provider);
+            return await signInWithPopup(auth, provider);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to sign in with Microsoft');
             throw err;
         }
     };
 
-    const signInWithEmail = async (email: string, password: string) => {
+    const signInWithEmail = async (email: string, password: string): Promise<UserCredential> => {
         setError(null);
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            return await signInWithEmailAndPassword(auth, email, password);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to sign in');
             throw err;
         }
     };
 
-    const signUpWithEmail = async (email: string, password: string) => {
+    const signUpWithEmail = async (email: string, password: string): Promise<UserCredential> => {
         setError(null);
         try {
-            await createUserWithEmailAndPassword(auth, email, password);
+            return await createUserWithEmailAndPassword(auth, email, password);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to create account');
             throw err;

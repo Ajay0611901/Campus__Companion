@@ -41,6 +41,8 @@ export interface UserProfile {
         skillProgress?: number;
         interviewReadiness?: number;
         lastActive?: any;
+        credits?: number;
+        lastCreditReset?: any;
     };
 }
 
@@ -123,12 +125,49 @@ export function useUserProfile() {
         } as any);
     };
 
+    const addXP = async (amount: number) => {
+        if (!user || !profile) return;
+
+        const currentStats = profile.stats || {
+            xp: 0,
+            level: 1,
+            streakDays: 0,
+            totalBadges: 0,
+            resumeScore: 0,
+            skillProgress: 0,
+            interviewReadiness: 0,
+        };
+
+        const newXP = currentStats.xp + amount;
+        // Simple level up formula: Level = floor(sqrt(XP / 100)) + 1
+        // e.g. 100xp = lvl 2, 400xp = lvl 3
+        const newLevel = Math.floor(Math.sqrt(newXP / 100)) + 1;
+        const leveledUp = newLevel > currentStats.level;
+
+        const updates = {
+            stats: {
+                ...currentStats,
+                xp: newXP,
+                level: newLevel,
+            }
+        };
+
+        await updateProfile(updates);
+
+        if (leveledUp) {
+            // You could trigger a celebration effect here or return it
+            return { leveledUp: true, newLevel };
+        }
+        return { leveledUp: false, newLevel };
+    };
+
     return {
         profile,
         loading,
         error,
         saveProfile,
         updateProfile,
+        addXP,
         hasProfile: !!profile?.onboardingCompleted,
     };
 }
