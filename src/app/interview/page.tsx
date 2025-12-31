@@ -1,7 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useInterviewCoach } from "@/hooks/useAI";
+import { useUserProfile } from "@/hooks/useUserProfile";
+
+// Helper to determine interview type from domains
+function getInterviewTypeFromDomains(domains: string[]): "behavioral" | "technical" | "mixed" {
+    const technicalDomains = [
+        "Software Development", "Data Science & AI", "Cybersecurity", "Cloud Computing",
+        "DevOps", "Mobile Development", "Web Development", "Machine Learning", "Blockchain"
+    ];
+    const technicalCount = domains.filter(d => technicalDomains.includes(d)).length;
+    const ratio = technicalCount / (domains.length || 1);
+
+    if (ratio >= 0.7) return "technical";
+    if (ratio >= 0.3) return "mixed";
+    return "behavioral";
+}
+
+// Helper to determine difficulty from experience level
+function getDifficultyFromExperience(exp: string): "entry" | "mid" | "senior" {
+    switch (exp) {
+        case "3+": return "senior";
+        case "1-3": return "mid";
+        default: return "entry";
+    }
+}
 
 // STAR Analysis Component
 function STARAnalysis({ analysis }: {
@@ -47,15 +71,16 @@ function STARAnalysis({ analysis }: {
     );
 }
 
-import { useUserProfile } from "@/hooks/useUserProfile";
-
 export default function InterviewPage() {
+    const { profile, addXP } = useUserProfile();
+
+    // State with default values - will be overridden by profile data
     const [role, setRole] = useState("");
     const [type, setType] = useState<"behavioral" | "technical" | "mixed">("behavioral");
     const [difficulty, setDifficulty] = useState<"entry" | "mid" | "senior">("entry");
     const [userAnswer, setUserAnswer] = useState("");
     const [sessionComplete, setSessionComplete] = useState(false);
-    const { addXP } = useUserProfile();
+    const [isProfileLoaded, setIsProfileLoaded] = useState(false);
 
     const {
         sessionId,
@@ -68,10 +93,34 @@ export default function InterviewPage() {
         reset
     } = useInterviewCoach();
 
+    // Auto-configure from user profile when it loads
+    useEffect(() => {
+        if (profile && !isProfileLoaded) {
+            // Set role from target role
+            if (profile.targetRole) {
+                setRole(profile.targetRole);
+            }
+
+            // Set interview type based on domains
+            if (profile.interestedDomains && profile.interestedDomains.length > 0) {
+                setType(getInterviewTypeFromDomains(profile.interestedDomains));
+            }
+
+            // Set difficulty based on experience level
+            if (profile.experienceLevel) {
+                setDifficulty(getDifficultyFromExperience(profile.experienceLevel));
+            }
+
+            setIsProfileLoaded(true);
+        }
+    }, [profile, isProfileLoaded]);
+
     const handleStart = async () => {
         if (!role.trim()) return;
         try {
-            await start(role, type, difficulty);
+            await start(role, type, difficulty, profile?.currentSemester);
+            // Dispatch event to refresh credit balance after AI usage
+            window.dispatchEvent(new CustomEvent('credits-used'));
         } catch {
             // Error handled by hook
         }
@@ -106,6 +155,25 @@ export default function InterviewPage() {
 
                 <div className="card" style={{ maxWidth: '500px' }}>
                     <h3 className="card-title mb-4">Start Mock Interview</h3>
+
+                    {/* Profile auto-config notice */}
+                    {isProfileLoaded && profile && (
+                        <div style={{
+                            padding: "12px 16px",
+                            background: "rgba(16, 185, 129, 0.1)",
+                            border: "1px solid rgba(16, 185, 129, 0.3)",
+                            borderRadius: "12px",
+                            marginBottom: "20px",
+                            fontSize: "14px"
+                        }}>
+                            <p style={{ color: "#10b981", marginBottom: "4px", fontWeight: "600" }}>
+                                ✨ Auto-configured from your profile
+                            </p>
+                            <p className="text-sm text-gray">
+                                Settings based on your onboarding: {profile.targetRole} • {profile.experienceLevel} level
+                            </p>
+                        </div>
+                    )}
 
                     <div className="form-group">
                         <label className="form-label">Target Role</label>

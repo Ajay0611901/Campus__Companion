@@ -60,32 +60,29 @@ export async function POST(request: NextRequest) {
         // Build messages array for OpenAI-compatible API
         const messages = [];
 
-        // System message with personalization
-        let systemPrompt = `You are an AI Learning Assistant for college students. You help with:
-- Academic concepts and explanations
-- Study techniques and tips
-- Career guidance
-- Technical interview preparation
-- Project ideas and guidance
+        // Build personalized system prompt
+        let systemPrompt = `You are an intelligent, friendly, and helpful AI Learning Assistant for college students.
+Your goal is to help students learn effectively, answer their questions clearly, and make studying engaging.
+Be conversational, encouraging, and adapt your explanations to be easily understood.
 
-Be concise, friendly, and educational. Use examples when helpful.`;
+Guidelines:
+- Provide clear, well-structured answers
+- Use examples when explaining complex topics
+- Be encouraging and supportive
+- If you're not sure about something, say so
+- Keep responses focused and relevant`;
 
-        // Add personalized context if profile exists
+        // Add personalization if profile is available
         if (userProfile) {
-            systemPrompt += `
+            const personalizations = [];
+            if (userProfile.name) personalizations.push(`Student's name is ${userProfile.name}`);
+            if (userProfile.major) personalizations.push(`studying ${userProfile.major}`);
+            if (userProfile.careerGoal) personalizations.push(`career goal: ${userProfile.careerGoal}`);
+            if (userProfile.learningStyle) personalizations.push(`prefers ${userProfile.learningStyle} learning`);
 
-STUDENT PROFILE:
-- Name: ${userProfile.fullName || 'Student'}
-- College: ${userProfile.collegeName || 'Unknown'}
-- Degree: ${userProfile.degree || 'Unknown'} ${userProfile.degreeDomain ? `(${userProfile.degreeDomain})` : ''}
-- Year: ${userProfile.graduationYear || 'Unknown'}
-- Current Semester: ${userProfile.currentSemester || 'Unknown'}
-- Target Role: ${userProfile.targetRole || 'Not specified'}
-- Skills: ${userProfile.skillsLearned?.join(', ') || 'None specified'}
-- Interested Domains: ${userProfile.interestedDomains?.join(', ') || 'None specified'}
-- Experience Level: ${userProfile.experienceLevel || 'Fresher'}
-
-IMPORTANT: Use this information to personalize your responses. When the student asks about themselves or their studies, reference this specific information. Tailor recommendations and advice to their degree, skills, and career goals.`;
+            if (personalizations.length > 0) {
+                systemPrompt += `\n\nStudent Profile: ${personalizations.join(', ')}. Personalize your responses accordingly.`;
+            }
         }
 
         messages.push({
@@ -93,55 +90,70 @@ IMPORTANT: Use this information to personalize your responses. When the student 
             content: systemPrompt
         });
 
-        // Add conversation history if exists
-        if (conversationHistory) {
-            const historyLines = conversationHistory.split('\n');
-            historyLines.forEach((line: string) => {
-                if (line.startsWith('User: ')) {
-                    messages.push({
-                        role: 'user',
-                        content: line.replace('User: ', '')
-                    });
-                } else if (line.startsWith('Assistant: ')) {
-                    messages.push({
-                        role: 'assistant',
-                        content: line.replace('Assistant: ', '')
-                    });
-                }
+        // Add conversation history if provided
+        if (conversationHistory && typeof conversationHistory === 'string') {
+            messages.push({
+                role: 'assistant',
+                content: `Previous context:\n${conversationHistory}`
             });
         }
 
-        // Add current user message
+        // Add the user's message
         messages.push({
             role: 'user',
             content: message
         });
 
-        // Call OpenRouter API with streaming
-        const apiResponse = await fetch(OPENROUTER_API_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'http://localhost:3000',
-                'X-Title': 'AI Campus Companion'
-            },
-            body: JSON.stringify({
-                model: 'google/gemini-2.0-flash-exp:free', // Use free usage tier model
-                messages: messages,
-                temperature: 0.7,
-                max_tokens: 1000,
-                stream: true // Enable streaming
-            })
-        });
+        // Try multiple free models in case one is rate-limited
+        const FREE_MODELS = [
+            'google/gemma-2-9b-it:free',      // Google's Gemma - usually good availability
+            'mistralai/mistral-7b-instruct:free', // Mistral as backup
+            'meta-llama/llama-3.2-3b-instruct:free' // Llama as last resort
+        ];
 
-        if (!apiResponse.ok) {
-            const errorData = await apiResponse.json().catch(() => ({}));
-            throw new Error(`OpenRouter API error: ${JSON.stringify(errorData)}`);
+        let apiResponse = null;
+        let lastError = null;
+
+        for (const model of FREE_MODELS) {
+            try {
+                console.log(`🤖 Trying model: ${model}`);
+                apiResponse = await fetch(OPENROUTER_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': 'http://localhost:3000',
+                        'X-Title': 'AI Campus Companion'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: messages,
+                        temperature: 0.7,
+                        max_tokens: 1000,
+                        stream: true
+                    })
+                });
+
+                if (apiResponse.ok) {
+                    console.log(`✅ Using model: ${model}`);
+                    break;
+                } else {
+                    const errorData = await apiResponse.json().catch(() => ({}));
+                    lastError = errorData;
+                    console.log(`⚠️ Model ${model} failed, trying next...`);
+                }
+            } catch (err) {
+                lastError = err;
+                console.log(`⚠️ Model ${model} error, trying next...`);
+            }
+        }
+
+        if (!apiResponse || !apiResponse.ok) {
+            throw new Error(`All AI models are currently rate-limited. Please try again in a few minutes. (Last error: ${JSON.stringify(lastError)})`);
         }
 
         // Award XP at the start of the interaction
-        updateUserStats(user.uid, 5).catch(err => console.error('XP update failed:', err));
+        updateUserStats(user.uid, 5).catch((err: any) => console.error('XP update failed:', err));
 
         // Return the raw stream to the client
         return new Response(apiResponse.body, {
@@ -153,18 +165,22 @@ IMPORTANT: Use this information to personalize your responses. When the student 
         });
 
     } catch (error: any) {
-        console.error('❌ Chat error:', {
-            message: error.message,
-            stack: error.stack,
-        });
-
+        console.error('❌ Chat error:', error);
         return NextResponse.json(
             {
-                success: false,
                 error: 'Failed to process message',
-                details: error.message
+                details: error.message || 'Unknown error'
             },
             { status: 500 }
         );
     }
+}
+
+export async function GET() {
+    return NextResponse.json({
+        status: 'AI Chat is online',
+        provider: 'OpenRouter (OpenAI-compatible)',
+        model: 'meta-llama/llama-3.2-3b-instruct:free',
+        features: ['Streaming', 'User Personalization', 'Unlimited Usage']
+    });
 }

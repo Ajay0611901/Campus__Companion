@@ -34,6 +34,20 @@ export interface ResumeAnalysis {
     strengths: string[];
     missingSkills: string[];
     suggestions: string[];
+    // Enhanced analysis fields
+    sectionSuggestions?: {
+        summary?: string;
+        skills?: string[];
+        experience?: string[];
+        projects?: string[];
+        education?: string;
+    };
+    atsKeywords?: string[];
+    contentToAdd?: Array<{
+        section: string;
+        suggestion: string;
+        example: string;
+    }>;
 }
 
 export interface ResumeAnalysisResponse {
@@ -326,13 +340,14 @@ export function useInterviewCoach() {
     const start = useCallback(async (
         role: string,
         type: 'behavioral' | 'technical' | 'mixed',
-        difficulty: 'entry' | 'mid' | 'senior'
+        difficulty: 'entry' | 'mid' | 'senior',
+        currentSemester?: string
     ) => {
         setLoading(true);
         setError(null);
 
         try {
-            const result = await startInterview({ role, type, difficulty });
+            const result = await startInterview({ role, type, difficulty, currentSemester });
             const response = result.data as {
                 success: boolean;
                 sessionId: string;

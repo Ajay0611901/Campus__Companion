@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 
 // Navigation items
@@ -30,8 +31,14 @@ export function Sidebar() {
         <aside className="sidebar">
             {/* Logo */}
             <div className="logo">
-                <div className="logo-icon">🎓</div>
-                <span className="logo-text">AI Campus Companion</span>
+                <Image
+                    src="/icon.png"
+                    alt="Campus Companion"
+                    width={48}
+                    height={48}
+                    style={{ borderRadius: '12px' }}
+                />
+                <span className="logo-text">Campus Companion</span>
             </div>
 
             {/* Navigation */}

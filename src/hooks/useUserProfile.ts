@@ -168,6 +168,7 @@ export function useUserProfile() {
         saveProfile,
         updateProfile,
         addXP,
+        refreshProfile: loadProfile, // Exposed to allow re-fetching profile data (e.g., after credit deduction)
         hasProfile: !!profile?.onboardingCompleted,
     };
 }

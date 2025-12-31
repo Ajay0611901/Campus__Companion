@@ -1,12 +1,24 @@
 
 "use client";
 
+import { useEffect } from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAuth } from "@/context/AuthContext";
 
 export function CreditBalance() {
     const { user } = useAuth();
-    const { profile } = useUserProfile();
+    const { profile, refreshProfile } = useUserProfile();
+
+    // Listen for credit deduction events and refresh the profile
+    useEffect(() => {
+        const handleCreditsUsed = () => {
+            console.log('🔄 Credits used, refreshing profile...');
+            refreshProfile();
+        };
+
+        window.addEventListener('credits-used', handleCreditsUsed);
+        return () => window.removeEventListener('credits-used', handleCreditsUsed);
+    }, [refreshProfile]);
 
     // Debugging visibility
     console.log('CreditBalance Render Check:', {

@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSkillRecommender } from "@/hooks/useAI";
+import { useAuth } from "@/context/AuthContext";
+
+interface Suggestions {
+    interests: string[];
+    skills: string[];
+}
 
 export default function SkillsPage() {
+    const { user } = useAuth();
     const [interests, setInterests] = useState<string[]>([]);
     const [interestInput, setInterestInput] = useState("");
     const [careerGoal, setCareerGoal] = useState("");
@@ -11,7 +18,51 @@ export default function SkillsPage() {
     const [skillInput, setSkillInput] = useState("");
     const [grade, setGrade] = useState("undergraduate");
 
+    // Auto-suggest state
+    const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
+    const [suggestLoading, setSuggestLoading] = useState(false);
+
     const { data: roadmap, loading, error, getRecommendations, reset } = useSkillRecommender();
+
+    // Auto-suggest interests and skills when career goal changes
+    const fetchSuggestions = useCallback(async (goal: string) => {
+        if (!goal.trim() || goal.length < 3) {
+            setSuggestions(null);
+            return;
+        }
+
+        setSuggestLoading(true);
+        try {
+            const response = await fetch('/api/skills/suggest', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${await user?.getIdToken()}`
+                },
+                body: JSON.stringify({ careerGoal: goal })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setSuggestions(data.suggestions);
+            }
+        } catch (err) {
+            console.error('Failed to fetch suggestions:', err);
+        } finally {
+            setSuggestLoading(false);
+        }
+    }, [user]);
+
+    // Debounce career goal input
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (careerGoal.trim() && careerGoal.length >= 3) {
+                fetchSuggestions(careerGoal);
+            }
+        }, 800); // Wait 800ms after user stops typing
+
+        return () => clearTimeout(timer);
+    }, [careerGoal, fetchSuggestions]);
 
     const addInterest = () => {
         if (interestInput.trim() && !interests.includes(interestInput.trim())) {
@@ -20,10 +71,22 @@ export default function SkillsPage() {
         }
     };
 
+    const addSuggestedInterest = (interest: string) => {
+        if (!interests.includes(interest)) {
+            setInterests([...interests, interest]);
+        }
+    };
+
     const addSkill = () => {
         if (skillInput.trim() && !currentSkills.includes(skillInput.trim())) {
             setCurrentSkills([...currentSkills, skillInput.trim()]);
             setSkillInput("");
+        }
+    };
+
+    const addSuggestedSkill = (skill: string) => {
+        if (!currentSkills.includes(skill)) {
+            setCurrentSkills([...currentSkills, skill]);
         }
     };
 
@@ -75,13 +138,45 @@ export default function SkillsPage() {
                             />
                             <button className="btn btn-secondary" onClick={addInterest}>Add</button>
                         </div>
-                        <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+                        <div className="flex gap-2" style={{ flexWrap: "wrap", marginBottom: "12px" }}>
                             {interests.map((interest, i) => (
                                 <span key={i} className="tag primary" style={{ cursor: "pointer" }} onClick={() => setInterests(interests.filter((_, j) => i !== j))}>
                                     {interest} ✕
                                 </span>
                             ))}
                         </div>
+
+                        {/* AI Suggested Interests */}
+                        {suggestLoading && (
+                            <div className="text-sm text-gray animate-pulse" style={{ marginTop: "8px" }}>
+                                ✨ Generating suggestions...
+                            </div>
+                        )}
+                        {suggestions && suggestions.interests.length > 0 && (
+                            <div style={{ marginTop: "8px" }}>
+                                <div className="text-xs text-gray" style={{ marginBottom: "6px" }}>
+                                    ✨ Suggested interests (click to add):
+                                </div>
+                                <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+                                    {suggestions.interests
+                                        .filter(interest => !interests.includes(interest))
+                                        .map((interest, i) => (
+                                            <span
+                                                key={i}
+                                                className="tag"
+                                                style={{
+                                                    cursor: "pointer",
+                                                    background: "rgba(99, 102, 241, 0.1)",
+                                                    border: "1px dashed var(--primary-400)"
+                                                }}
+                                                onClick={() => addSuggestedInterest(interest)}
+                                            >
+                                                + {interest}
+                                            </span>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="form-group">
@@ -97,13 +192,40 @@ export default function SkillsPage() {
                             />
                             <button className="btn btn-secondary" onClick={addSkill}>Add</button>
                         </div>
-                        <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+                        <div className="flex gap-2" style={{ flexWrap: "wrap", marginBottom: "12px" }}>
                             {currentSkills.map((skill, i) => (
                                 <span key={i} className="tag success" style={{ cursor: "pointer" }} onClick={() => setCurrentSkills(currentSkills.filter((_, j) => i !== j))}>
                                     {skill} ✕
                                 </span>
                             ))}
                         </div>
+
+                        {/* AI Suggested Skills */}
+                        {suggestions && suggestions.skills.length > 0 && (
+                            <div style={{ marginTop: "8px" }}>
+                                <div className="text-xs text-gray" style={{ marginBottom: "6px" }}>
+                                    ✨ Suggested skills (click to add):
+                                </div>
+                                <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+                                    {suggestions.skills
+                                        .filter(skill => !currentSkills.includes(skill))
+                                        .map((skill, i) => (
+                                            <span
+                                                key={i}
+                                                className="tag"
+                                                style={{
+                                                    cursor: "pointer",
+                                                    background: "rgba(16, 185, 129, 0.1)",
+                                                    border: "1px dashed var(--accent-emerald)"
+                                                }}
+                                                onClick={() => addSuggestedSkill(skill)}
+                                            >
+                                                + {skill}
+                                            </span>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="form-group">

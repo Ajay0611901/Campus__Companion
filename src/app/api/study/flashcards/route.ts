@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-
         const user = await verifyAuth(request);
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -57,10 +56,9 @@ export async function POST(request: NextRequest) {
                 'X-Title': 'AI Campus Companion'
             },
             body: JSON.stringify({
-                model: 'google/gemini-2.0-flash-001',
+                model: 'meta-llama/llama-3.2-3b-instruct:free',
                 messages: [{ role: 'user', content: prompt }],
                 temperature: 0.7,
-                response_format: { type: 'json_object' }
             })
         });
 

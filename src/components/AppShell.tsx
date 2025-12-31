@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="app-layout">
             {!isAuthPage && <Sidebar />}
             {!isAuthPage && <CreditBalance />}
-            <main className="main-content" style={{ marginLeft: isAuthPage ? 0 : 'var(--sidebar-width)' }}>
+            <main className={`main-content ${isAuthPage ? 'no-sidebar' : ''}`}>
                 {children}
             </main>
         </div>

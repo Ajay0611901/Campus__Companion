@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server';
 import { adminAuth } from './firebase-admin';
 
+// Check if we're in dev mode with auth bypass
+const isDevBypass = process.env.SKIP_AUTH_DEV === 'true';
+
 export async function verifyAuth(request: NextRequest) {
     const authHeader = request.headers.get('Authorization');
 
@@ -13,7 +16,8 @@ export async function verifyAuth(request: NextRequest) {
 
     try {
         // Special case for local development if Firebase Admin is not fully set up
-        if (process.env.NODE_ENV === 'development' && process.env.SKIP_AUTH_DEV === 'true') {
+        if (isDevBypass) {
+            console.log('🔓 DEV MODE: Skipping auth verification');
             return { uid: 'dev-user', email: 'dev@example.com' };
         }
 

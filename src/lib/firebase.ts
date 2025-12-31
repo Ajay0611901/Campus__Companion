@@ -160,7 +160,7 @@ export async function generateFlashcards(data: { content: string }) {
     return { data: await response.json() };
 }
 
-export async function startInterview(data: { role: string; type: string; difficulty: string }) {
+export async function startInterview(data: { role: string; type: string; difficulty: string; currentSemester?: string }) {
     const authHeader = await getAuthHeader();
     const response = await fetch('/api/interview', {
         method: 'POST',
@@ -263,12 +263,44 @@ export async function streamChatMessage(
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+    let buffer = '';
 
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        onChunk(chunk);
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete SSE lines from buffer
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+
+            // Skip empty lines and SSE comments (lines starting with :)
+            if (!trimmedLine || trimmedLine.startsWith(':')) continue;
+
+            // Parse SSE data lines
+            if (trimmedLine.startsWith('data: ')) {
+                const jsonStr = trimmedLine.slice(6); // Remove 'data: ' prefix
+
+                // Check for stream end signal
+                if (jsonStr === '[DONE]') continue;
+
+                try {
+                    const parsed = JSON.parse(jsonStr);
+                    // Extract content from OpenAI/OpenRouter format
+                    const content = parsed.choices?.[0]?.delta?.content;
+                    if (content) {
+                        onChunk(content);
+                    }
+                } catch (e) {
+                    // Skip malformed JSON lines
+                    console.warn('Failed to parse SSE chunk:', jsonStr.slice(0, 50));
+                }
+            }
+        }
     }
 }
 

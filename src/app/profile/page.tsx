@@ -27,20 +27,20 @@ const mockUser = {
 };
 
 const badges = [
-    { id: "1", name: "Resume Pro", description: "Score 75+ on resume analysis", icon: "📄", earned: true, earnedAt: "2 days ago" },
-    { id: "2", name: "Week Warrior", description: "Maintain a 7-day streak", icon: "🔥", earned: true, earnedAt: "Today" },
-    { id: "3", name: "Interview Ready", description: "Complete 5 mock interviews", icon: "🎤", earned: true, earnedAt: "1 week ago" },
-    { id: "4", name: "Quick Learner", description: "Complete skill roadmap phase 1", icon: "📚", earned: true, earnedAt: "3 days ago" },
-    { id: "5", name: "Quiz Master", description: "Score 90%+ on 3 quizzes", icon: "🏆", earned: false, progress: 66 },
-    { id: "6", name: "Flashcard Pro", description: "Review 100 flashcards", icon: "🃏", earned: false, progress: 45 },
-    { id: "7", name: "Perfect Score", description: "Get 100% ATS score", icon: "💯", earned: false, progress: 78 },
-    { id: "8", name: "30-Day Streak", description: "Maintain a 30-day streak", icon: "⚡", earned: false, progress: 23 },
+    { id: "1", name: "Resume Pro", description: "Score 75+ on resume analysis", icon: "📄", earned: false, progress: 0 },
+    { id: "2", name: "Week Warrior", description: "Maintain a 7-day streak", icon: "🔥", earned: false, progress: 0 },
+    { id: "3", name: "Interview Ready", description: "Complete 5 mock interviews", icon: "🎤", earned: false, progress: 0 },
+    { id: "4", name: "Quick Learner", description: "Complete skill roadmap phase 1", icon: "📚", earned: false, progress: 0 },
+    { id: "5", name: "Quiz Master", description: "Score 90%+ on 3 quizzes", icon: "🏆", earned: false, progress: 0 },
+    { id: "6", name: "Flashcard Pro", description: "Review 100 flashcards", icon: "🃏", earned: false, progress: 0 },
+    { id: "7", name: "Perfect Score", description: "Get 100% ATS score", icon: "💯", earned: false, progress: 0 },
+    { id: "8", name: "30-Day Streak", description: "Maintain a 30-day streak", icon: "⚡", earned: false, progress: 0 },
 ];
 
 const challenges = [
-    { id: "1", title: "Improve Resume", description: "Increase your ATS score by 10 points", type: "weekly", xp: 200, progress: 40, target: 100 },
+    { id: "1", title: "Improve Resume", description: "Increase your ATS score by 10 points", type: "weekly", xp: 200, progress: 0, target: 100 },
     { id: "2", title: "Mock Interview", description: "Complete 1 mock interview today", type: "daily", xp: 50, progress: 0, target: 1 },
-    { id: "3", title: "Study Session", description: "Summarize a lecture and review flashcards", type: "daily", xp: 75, progress: 50, target: 100 },
+    { id: "3", title: "Study Session", description: "Summarize a lecture and review flashcards", type: "daily", xp: 75, progress: 0, target: 100 },
 ];
 
 const recentActivity = [
@@ -85,11 +85,6 @@ function BadgeCard({ badge }: { badge: typeof badges[0] }) {
             <div style={{ fontSize: '40px', marginBottom: '12px' }}>{badge.icon}</div>
             <h4 className="font-semibold text-sm mb-4">{badge.name}</h4>
             <p className="text-xs text-gray">{badge.description}</p>
-            {badge.earned && (
-                <div className="text-xs mt-4" style={{ marginTop: '8px', color: '#10b981' }}>
-                    ✓ Earned {badge.earnedAt}
-                </div>
-            )}
         </div>
     );
 }
@@ -218,23 +213,13 @@ export default function ProfilePage() {
                     {/* Recent Activity */}
                     <div className="card">
                         <h3 className="card-title mb-4">🕐 Recent Activity</h3>
-                        {recentActivity.map((activity, i) => (
-                            <div
-                                key={i}
-                                className="flex items-center gap-4"
-                                style={{
-                                    padding: '12px 0',
-                                    borderBottom: i < recentActivity.length - 1 ? '1px solid var(--glass-border)' : 'none'
-                                }}
-                            >
-                                <span style={{ fontSize: '20px' }}>{activity.icon}</span>
-                                <div style={{ flex: 1 }}>
-                                    <div className="text-sm">{activity.action}</div>
-                                    <div className="text-xs text-gray">{activity.time}</div>
-                                </div>
-                                <span className="tag success">+{activity.xp} XP</span>
+                        <div className="text-center" style={{ padding: '32px 0' }}>
+                            <div style={{ fontSize: '48px', marginBottom: '12px' }}>📭</div>
+                            <div className="text-sm text-gray">No recent activity yet</div>
+                            <div className="text-xs text-gray" style={{ marginTop: '8px' }}>
+                                Start using AI features to see your activity here!
                             </div>
-                        ))}
+                        </div>
                     </div>
                 </div>
 

@@ -5,6 +5,7 @@ import { streamChatMessage, isFirebaseConfigured, auth, db } from "@/lib/firebas
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { AuthModal } from "@/components/AuthModal";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
     role: "user" | "assistant";
@@ -95,6 +96,9 @@ export default function ChatPage() {
                     return newMessages;
                 });
             });
+
+            // Dispatch event to refresh credit balance after AI usage
+            window.dispatchEvent(new CustomEvent('credits-used'));
 
         } catch (err) {
             // Show detailed error message
@@ -216,9 +220,15 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id`}
                                     {message.role === "assistant" && (
                                         <div className="text-xs text-gray" style={{ marginBottom: "8px" }}>🤖 AI Assistant</div>
                                     )}
-                                    <p className="text-sm" style={{ whiteSpace: "pre-wrap", lineHeight: "1.6" }}>
-                                        {message.content}
-                                    </p>
+                                    {message.role === "assistant" ? (
+                                        <div className="text-sm prose prose-invert" style={{ lineHeight: "1.6" }}>
+                                            <ReactMarkdown>{message.content}</ReactMarkdown>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm" style={{ whiteSpace: "pre-wrap", lineHeight: "1.6" }}>
+                                            {message.content}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         ))}

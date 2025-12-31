@@ -390,6 +390,108 @@ export default function ResumePage() {
                         </div>
                     </div>
 
+                    {/* ATS Keywords */}
+                    {analysis.atsKeywords && analysis.atsKeywords.length > 0 && (
+                        <div className="card mb-4" style={{ marginBottom: "24px" }}>
+                            <h3 className="card-title mb-4">🔑 ATS Keywords to Include</h3>
+                            <p className="text-sm text-gray mb-4" style={{ marginBottom: "12px" }}>
+                                Add these keywords to improve your resume's ATS compatibility:
+                            </p>
+                            <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+                                {analysis.atsKeywords.map((keyword: string, i: number) => (
+                                    <span key={i} className="tag primary">{keyword}</span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Section-by-Section Suggestions */}
+                    {analysis.sectionSuggestions && (
+                        <div className="card mb-4" style={{ marginBottom: "24px" }}>
+                            <h3 className="card-title mb-4">📝 Section-by-Section Recommendations</h3>
+                            <div className="flex flex-col gap-4">
+                                {/* Summary */}
+                                {analysis.sectionSuggestions.summary && (
+                                    <div style={{ padding: "16px", background: "var(--bg-tertiary)", borderRadius: "12px" }}>
+                                        <h4 className="font-semibold text-sm mb-2" style={{ marginBottom: "8px" }}>📄 Professional Summary</h4>
+                                        <p className="text-sm text-gray">{analysis.sectionSuggestions.summary}</p>
+                                    </div>
+                                )}
+
+                                {/* Skills */}
+                                {analysis.sectionSuggestions.skills && analysis.sectionSuggestions.skills.length > 0 && (
+                                    <div style={{ padding: "16px", background: "var(--bg-tertiary)", borderRadius: "12px" }}>
+                                        <h4 className="font-semibold text-sm mb-2" style={{ marginBottom: "8px" }}>🛠 Skills to Add</h4>
+                                        <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+                                            {analysis.sectionSuggestions.skills.map((skill: string, i: number) => (
+                                                <span key={i} className="tag success">{skill}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Experience Tips */}
+                                {analysis.sectionSuggestions.experience && analysis.sectionSuggestions.experience.length > 0 && (
+                                    <div style={{ padding: "16px", background: "var(--bg-tertiary)", borderRadius: "12px" }}>
+                                        <h4 className="font-semibold text-sm mb-2" style={{ marginBottom: "8px" }}>💼 Experience Section Tips</h4>
+                                        <ul className="text-sm text-gray">
+                                            {analysis.sectionSuggestions.experience.map((tip: string, i: number) => (
+                                                <li key={i} style={{ marginBottom: "4px" }}>• {tip}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* Project Ideas */}
+                                {analysis.sectionSuggestions.projects && analysis.sectionSuggestions.projects.length > 0 && (
+                                    <div style={{ padding: "16px", background: "var(--bg-tertiary)", borderRadius: "12px" }}>
+                                        <h4 className="font-semibold text-sm mb-2" style={{ marginBottom: "8px" }}>🚀 Recommended Projects</h4>
+                                        <ul className="text-sm text-gray">
+                                            {analysis.sectionSuggestions.projects.map((project: string, i: number) => (
+                                                <li key={i} style={{ marginBottom: "4px" }}>• {project}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Content to Add */}
+                    {analysis.contentToAdd && analysis.contentToAdd.length > 0 && (
+                        <div className="card mb-4" style={{ marginBottom: "24px" }}>
+                            <h3 className="card-title mb-4">✍️ Content to Add</h3>
+                            <div className="flex flex-col gap-4">
+                                {analysis.contentToAdd.map((item: { section: string; suggestion: string; example: string }, i: number) => (
+                                    <div
+                                        key={i}
+                                        style={{
+                                            padding: "16px",
+                                            background: "rgba(99, 102, 241, 0.1)",
+                                            borderRadius: "12px",
+                                            border: "1px solid rgba(99, 102, 241, 0.2)"
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2 mb-2" style={{ marginBottom: "8px" }}>
+                                            <span className="tag primary">{item.section}</span>
+                                        </div>
+                                        <p className="text-sm mb-2" style={{ marginBottom: "8px" }}>{item.suggestion}</p>
+                                        {item.example && (
+                                            <p className="text-xs text-gray" style={{
+                                                fontStyle: "italic",
+                                                padding: "8px",
+                                                background: "var(--bg-tertiary)",
+                                                borderRadius: "8px"
+                                            }}>
+                                                Example: "{item.example}"
+                                            </p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Actions */}
                     <div className="flex gap-4">
                         <button
